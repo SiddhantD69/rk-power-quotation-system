@@ -1,142 +1,182 @@
 import tkinter as tk
 from tkinter import messagebox
+import sqlite3
 from datetime import datetime
 
-# ---------------- MAIN WINDOW ----------------
+# ================= DATABASE =================
+conn = sqlite3.connect("rk_power.db")
+cur = conn.cursor()
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS users(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    email TEXT UNIQUE,
+    password TEXT
+)
+""")
+
+conn.commit()
+
+# ================= ROOT =================
 root = tk.Tk()
-root.title("RK POWER - Quotation System")
+root.title("RK POWER")
 root.geometry("1100x700")
 root.configure(bg="#f4f4f4")
 
-# ---------------- UTIL ----------------
+# ================= COMMON =================
 def clear():
-    for widget in root.winfo_children():
-        widget.destroy()
+    for w in root.winfo_children():
+        w.destroy()
 
-# ---------------- LOGIN PAGE ----------------
+# ================= LOGIN =================
 def login_page():
     clear()
 
     frame = tk.Frame(root, bg="white", padx=40, pady=40)
     frame.place(relx=0.5, rely=0.5, anchor="center")
 
-    tk.Label(frame, text="RK POWER", font=("Arial", 28, "bold"), fg="red", bg="white").pack(pady=10)
-    tk.Label(frame, text="Login", font=("Arial", 14), bg="white").pack(pady=5)
+    tk.Label(frame, text="RK POWER", font=("Arial", 26, "bold"), fg="red").pack(pady=10)
+    tk.Label(frame, text="Login", font=("Arial", 16)).pack()
 
-    tk.Label(frame, text="Email", bg="white").pack(anchor="w")
-    email = tk.Entry(frame, width=40)
+    tk.Label(frame, text="Email").pack(anchor="w")
+    email = tk.Entry(frame, width=35)
     email.pack(pady=5)
 
-    tk.Label(frame, text="Password", bg="white").pack(anchor="w")
-    password = tk.Entry(frame, width=40, show="*")
+    tk.Label(frame, text="Password").pack(anchor="w")
+    password = tk.Entry(frame, width=35, show="*")
     password.pack(pady=5)
 
+    msg = tk.Label(frame, fg="red")
+    msg.pack()
+
     def login():
-        if email.get() and password.get():
+        cur.execute("SELECT * FROM users WHERE email=? AND password=?", (email.get(), password.get()))
+        user = cur.fetchone()
+        if user:
             dashboard()
         else:
-            messagebox.showerror("Error", "Enter Email and Password")
+            msg.config(text="Wrong email or password")
 
-    tk.Button(frame, text="LOGIN", bg="#e74c3c", fg="white",
-              width=25, command=login).pack(pady=15)
+    tk.Button(frame, text="LOGIN", bg="#e74c3c", fg="white", width=25, command=login).pack(pady=10)
+    tk.Button(frame, text="Create Account", command=create_account).pack()
 
-    tk.Button(frame, text="Create Account", command=lambda: messagebox.showinfo("Info","Feature Coming Soon")).pack()
+# ================= CREATE ACCOUNT =================
+def create_account():
+    clear()
 
-# ---------------- DASHBOARD ----------------
+    frame = tk.Frame(root, bg="white", padx=40, pady=40)
+    frame.place(relx=0.5, rely=0.5, anchor="center")
+
+    tk.Label(frame, text="Create Account", font=("Arial", 20)).pack(pady=10)
+
+    tk.Label(frame, text="Name").pack(anchor="w")
+    name = tk.Entry(frame, width=35)
+    name.pack()
+
+    tk.Label(frame, text="Email").pack(anchor="w")
+    email = tk.Entry(frame, width=35)
+    email.pack()
+
+    tk.Label(frame, text="Password").pack(anchor="w")
+    password = tk.Entry(frame, width=35, show="*")
+    password.pack()
+
+    def create():
+        try:
+            cur.execute("INSERT INTO users(name,email,password) VALUES (?,?,?)",
+                        (name.get(), email.get(), password.get()))
+            conn.commit()
+            messagebox.showinfo("Success", "Account Created Successfully")
+            login_page()
+        except:
+            messagebox.showerror("Error", "Email already exists")
+
+    tk.Button(frame, text="Create Account", command=create).pack(pady=10)
+    tk.Button(frame, text="Back", command=login_page).pack()
+
+# ================= DASHBOARD =================
 def dashboard():
     clear()
-    tk.Label(root, text="Dashboard", font=("Arial", 26, "bold")).pack(pady=20)
+    tk.Label(root, text="Dashboard", font=("Arial", 26)).pack(pady=20)
 
-    frame = tk.Frame(root)
-    frame.pack(pady=20)
+    tk.Button(root, text="New Quotation", width=30, height=2, command=new_quotation).pack(pady=10)
+    tk.Button(root, text="Logout", width=30, height=2, command=login_page).pack(pady=10)
 
-    btn_style = {"width": 30, "height": 2, "font": ("Arial", 12)}
-
-    tk.Button(frame, text="New Quotation", **btn_style, command=new_quotation).pack(pady=10)
-    tk.Button(frame, text="Quotation History", **btn_style).pack(pady=10)
-    tk.Button(frame, text="Logout", **btn_style, command=login_page).pack(pady=10)
-
-# ---------------- NEW QUOTATION ----------------
+# ================= NEW QUOTATION =================
 def new_quotation():
     clear()
 
-    tk.Label(root, text="New Quotation", font=("Arial", 24, "bold")).pack(pady=10)
+    tk.Label(root, text="New Quotation", font=("Arial", 22)).pack(pady=10)
 
     form = tk.Frame(root)
-    form.pack(pady=10)
+    form.pack()
 
-    def labeled_input(label, width=50):
+    def field(label):
         tk.Label(form, text=label).pack(anchor="w")
-        e = tk.Entry(form, width=width)
-        e.pack(pady=3)
+        e = tk.Entry(form, width=50)
+        e.pack(pady=4)
         return e
 
-    quote_no = labeled_input("Quotation No")
-    company = labeled_input("Company Name")
-    email = labeled_input("Company Email")
-    phone = labeled_input("Company Phone")
-    address = tk.Text(form, height=3, width=60)
+    q_no = field("Quotation Number")
+    cname = field("Company Name")
+    email = field("Company Email")
+    phone = field("Company Phone")
+    address = tk.Text(form, height=3, width=50)
     tk.Label(form, text="Company Address").pack(anchor="w")
-    address.pack(pady=5)
+    address.pack()
+    attention = field("Kind Attention")
 
-    tk.Label(form, text="Kind Attention").pack(anchor="w")
-    attention = tk.Entry(form, width=50)
-    attention.pack(pady=3)
-
-    today = datetime.now().strftime("%d-%m-%Y")
     tk.Label(form, text="Quotation Date").pack(anchor="w")
-    date = tk.Entry(form, width=30)
-    date.insert(0, today)
-    date.pack(pady=3)
+    date = tk.Entry(form)
+    date.insert(0, datetime.now().strftime("%d-%m-%Y"))
+    date.pack()
 
-    # ---------------- ITEM TABLE ----------------
-    tk.Label(root, text="Item Description", font=("Arial", 18, "bold")).pack(pady=10)
+    # -------- TABLE ----------
+    tk.Label(root, text="Item Description", font=("Arial", 18)).pack(pady=10)
 
     table = tk.Frame(root)
     table.pack()
 
     headers = ["Sr", "Description", "Qty", "Rate", "Total"]
     for i, h in enumerate(headers):
-        tk.Label(table, text=h, width=18, relief="solid").grid(row=0, column=i)
+        tk.Label(table, text=h, width=15, relief="solid").grid(row=0, column=i)
 
     rows = []
 
     def add_row():
         r = len(rows) + 1
         row = []
-
-        tk.Label(table, text=str(r), width=18, relief="solid").grid(row=r, column=0)
-        for c in range(1, 5):
-            e = tk.Entry(table, width=18)
-            e.grid(row=r, column=c)
+        tk.Label(table, text=str(r), width=15, relief="solid").grid(row=r, column=0)
+        for i in range(1, 5):
+            e = tk.Entry(table, width=15)
+            e.grid(row=r, column=i)
             row.append(e)
         rows.append(row)
 
-    def calculate_total():
+    def calculate():
         total = 0
         for r in rows:
             try:
                 qty = float(r[1].get())
                 rate = float(r[2].get())
-                amount = qty * rate
+                amt = qty * rate
                 r[3].delete(0, tk.END)
-                r[3].insert(0, str(amount))
-                total += amount
+                r[3].insert(0, str(amt))
+                total += amt
             except:
                 pass
-        total_label.config(text=f"Grand Total : ₹ {total:.2f}")
+        total_lbl.config(text=f"Grand Total : ₹ {total:.2f}")
 
     tk.Button(root, text="Add Row", command=add_row).pack(pady=5)
-    tk.Button(root, text="Calculate Total", command=calculate_total).pack(pady=5)
+    tk.Button(root, text="Calculate Total", command=calculate).pack(pady=5)
 
-    total_label = tk.Label(root, text="Grand Total : ₹ 0", font=("Arial", 14, "bold"))
-    total_label.pack(pady=10)
+    total_lbl = tk.Label(root, text="Grand Total : ₹ 0", font=("Arial", 14, "bold"))
+    total_lbl.pack(pady=10)
 
-    tk.Button(root, text="Save & Generate PDF", bg="green", fg="white",
-              font=("Arial", 12), command=lambda: messagebox.showinfo("Saved", "Quotation Saved")).pack(pady=10)
+    tk.Button(root, text="Save & Finish", bg="green", fg="white").pack(pady=10)
+    tk.Button(root, text="Back", command=dashboard).pack()
 
-    tk.Button(root, text="Back", command=dashboard).pack(pady=10)
-
-# ---------------- START ----------------
+# ================= START =================
 login_page()
 root.mainloop()
